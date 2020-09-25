@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="d582ae8f-51cb-4465-b22f-531a3b9d5334" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<wsc:config name="Web_Service_Consumer_Config" doc:name="Web Service Consumer Config" doc:id="ef4f6fbd-e44e-4a29-b071-2a4af27578c5" >
+		<wsc:connection wsdlLocation="http://mu.mulesoft-training.com/essentials/delta?wsdl" service="TicketServiceService" port="TicketServicePort" address="http://mu.mulesoft-training.com/essentials/delta" />
+	</wsc:config>
+	<flow name="deploy-jenkins-Flow" doc:id="4351d7f0-e4d6-4877-8ac8-508733522226" >
+		<http:listener doc:name="Listener" doc:id="b35e7be9-9221-4706-aa35-cfbf5f06e4d1" config-ref="HTTP_Listener_config" path="/deploy2"/>
+		<logger level="INFO" doc:name="Logger" doc:id="2ded600d-f186-48af-aee5-a0a1aa298aeb" message='#["Flow started"]'/>
+		<choice doc:name="Choice" doc:id="c10f8879-8fc6-45f1-968c-824900d8eeda" >
+			<when expression="#[attributes.queryParams.destination== 'LAX']">
+				<logger level="INFO" doc:name="Logger" doc:id="9937d5f3-581d-4cf0-a646-d73460044bb2" message='#["You can find flights this way"]'/>
+				<ee:transform doc:name="Transform Message" doc:id="1f9422a7-eb21-4737-a00a-03cd9652edc7">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://soap.training.mulesoft.com/
+---
+{
+	ns0#findFlight:{
+		destination: attributes.queryParams.destination
+	}
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<wsc:consume operation="findFlight" doc:name="Consume" doc:id="fdfdc132-bc19-4495-8068-b3de475d3d7f" config-ref="Web_Service_Consumer_Config"/>
+				<ee:transform doc:name="Transform Message" doc:id="1a670c2f-24ec-4e75-bfb7-1e20c29d1c06" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	result: payload.body
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<set-payload value='#["No flights are found"]' doc:name="Set Payload" doc:id="2cff726f-ef03-4d1d-b9dc-d1a7935c524a" />
+				<ee:transform doc:name="Transform Message" doc:id="f2782626-b083-4317-9af9-217f9712425b" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Logger" doc:id="d07f9b86-2daa-41c7-8e48-a92e33759ce8" message='#["Flow is completed"]'/>
+	</flow>
+</mule>
